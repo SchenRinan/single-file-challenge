@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Word of the Day</title>
+</head>
+
+<body>
+
+  <h1>Word of the Day</h1>
+  <div id="wordOfTheDayContainer">
+    <p id="wordOfTheDay">Fetching...</p>
+    <p id="wordDescription"></p>
+  </div>
+
+  <script>
+    // Make an HTTP request to fetch the webpage content using a proxy server
+    fetch('https://cors-anywhere.herokuapp.com/https://www.dictionary.com/e/word-of-the-day/', {
+      headers: {
+        'Origin': window.location.origin
+      }
+    })
+      .then(response => {
+        // Check if the request was successful
+        if (!response.ok) {
+          throw new Error('Failed to fetch the webpage');
+        }
+        // Parse the response text as HTML
+        return response.text();
+      })
+      .then(html => {
+        // Create a temporary element to parse the HTML
+        const tempElement = document.createElement('div');
+        tempElement.innerHTML = html;
+
+        // Find the element containing the word of the day
+        const wordOfTheDayElement = tempElement.querySelector('div.otd-item-headword__word h1.js-fit-text');
+
+        // Extract the word of the day from the element
+        const wordOfTheDay = wordOfTheDayElement.textContent.trim();
+
+        // Find the description element
+        const descriptionElement = tempElement.querySelector('div.otd-item-headword__pos p:nth-of-type(2)');
+
+        // Extract the description from the element
+        const description = descriptionElement.textContent.trim();
+
+        // Update the content on the webpage
+        document.getElementById('wordOfTheDay').textContent = wordOfTheDay;
+        document.getElementById('wordDescription').textContent = description;
+      })
+      .catch(error => {
+        // Handle errors
+        console.error('Error:', error);
+        document.getElementById('wordOfTheDay').textContent = 'Error fetching the word of the day';
+      });
+  </script>
+
+</body>
+
+</html>
