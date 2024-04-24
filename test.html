@@ -5,14 +5,64 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Word of the Day</title>
+  <style>
+    /* Styling for the input field */
+    #guessInput {
+      display: none;
+      /* Hide the default input field */
+    }
+
+    /* Styling for the letter boxes */
+    .letter-box {
+      display: inline-block;
+      width: 40px;
+      height: 40px;
+      margin-right: 5px;
+      border: 1px solid #ccc;
+      text-align: center;
+      line-height: 40px;
+      font-size: 20px;
+      font-weight: bold;
+    }
+  </style>
 </head>
 
 <body>
 
   <h1>Word of the Day</h1>
-  <p id="wordOfTheDay">Fetching...</p>
+  <div id="wordOfTheDayContainer">
+    <p id="wordOfTheDay">Fetching...</p>
+    <p id="wordDescription">Fetching definition...</p>
+  </div>
+
+  <form id="guessForm">
+    <!-- Displaying the input field as letter boxes -->
+    <div id="letterBoxes"></div>
+    <input type="text" id="guessInput" name="guessInput">
+    <button type="submit">Submit</button>
+    <button type="button" id="clueButton">Use a Clue</button>
+  </form>
 
   <script>
+    // Function to fetch the definition of the word of the day
+    function fetchDefinition(word) {
+      fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Definition not found by dictionaryapi');
+          }
+          return response.json();
+        })
+        .then(data => {
+          const definition = data[0]?.meanings[0]?.definitions[0]?.definition || 'No definition found';
+          document.getElementById('wordDescription').textContent = definition;
+        })
+        .catch(error => {
+          console.error('Error fetching definition:', error);
+          document.getElementById('wordDescription').textContent = 'Error fetching definition';
+        });
+    }
+
     // Make an HTTP request to fetch a random word
     fetch('https://random-word-api.herokuapp.com/word')
       .then(response => {
@@ -29,12 +79,141 @@
 
         // Update the content on the webpage
         document.getElementById('wordOfTheDay').textContent = wordOfTheDay;
+
+        // Fetch the definition of the word of the day
+        fetchDefinition(wordOfTheDay);
+
+        // Display the input field as letter boxes
+        const letterBoxesContainer = document.getElementById('letterBoxes');
+        wordOfTheDay.split('').forEach((letter, index) => {
+          const letterBox = document.createElement('input');
+          letterBox.type = 'text';
+          letterBox.maxLength = 1;
+          letterBox.classList.add('letter-box');
+          letterBox.value = ''; // Clear the default value
+          letterBox.dataset.index = index; // Store the index of the letter box
+          letterBoxesContainer.appendChild(letterBox);
+
+          // Add event listener for keypress event (for replacing content)
+          letterBox.addEventListener('keypress', function (event) {
+            // Replace the content of the current letter box with the typed letter
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              return;
+            }
+            this.value = event.key;
+
+            // Move focus to the next letter box
+            let nextIndex = index + 1;
+            while (nextIndex < wordOfTheDay.length && letterBoxesContainer.children[nextIndex].disabled) {
+              nextIndex++;
+            }
+            if (nextIndex < wordOfTheDay.length) {
+              letterBoxesContainer.children[nextIndex].focus();
+            }
+          });
+
+
+          // Add event listener for keydown event (for backspace, arrow keys, and Enter key)
+          letterBox.addEventListener('keydown', function (event) {
+            let currentIndex = index; // Store the current index
+            if (event.key === 'Backspace') {
+              // Prevent the default behavior of backspace (removing the previous character)
+              event.preventDefault();
+              // Remove the content of the current letter box
+              this.value = '';
+              // Move focus back to the current letter box
+              let previousIndex = currentIndex - 1;
+              while (previousIndex >= 0 && letterBoxesContainer.children[previousIndex].disabled) {
+                previousIndex--;
+              }
+              if (previousIndex >= 0) {
+                letterBoxesContainer.children[previousIndex].focus();
+              }
+            } else if (event.key === 'ArrowLeft') {
+              // Move focus to the previous letter box if not disabled
+              let previousIndex = currentIndex - 1;
+              while (previousIndex >= 0 && letterBoxesContainer.children[previousIndex].disabled) {
+                previousIndex--;
+              }
+              if (previousIndex >= 0) {
+                letterBoxesContainer.children[previousIndex].focus();
+              }
+            } else if (event.key === 'ArrowRight') {
+              // Move focus to the next letter box if not disabled
+              let nextIndex = currentIndex + 1;
+              while (nextIndex < wordOfTheDay.length && letterBoxesContainer.children[nextIndex].disabled) {
+                nextIndex++;
+              }
+              if (nextIndex < wordOfTheDay.length) {
+                letterBoxesContainer.children[nextIndex].focus();
+              }
+            }
+          });
+        });
+
+        // Initialize the clue button
+        let clueUsed = false;
+        const clueButton = document.getElementById('clueButton');
+        clueButton.addEventListener('click', function () {
+          if (!clueUsed) {
+            // Get all letter boxes without a value
+            const emptyLetterBoxes = [...document.querySelectorAll('.letter-box:not([value])')];
+            if (emptyLetterBoxes.length >= 3) {
+              // Randomly select the first empty letter box
+              // const firstRandomIndex = Math.floor(Math.random() * emptyLetterBoxes.length);
+              const firstRandomLetterBox = emptyLetterBoxes[0];
+              firstRandomLetterBox.value = wordOfTheDay[0];
+              firstRandomLetterBox.disabled = true;
+              emptyLetterBoxes.splice(0, 1);
+
+              // Randomly select the second empty letter box
+              const secondRandomIndex = Math.floor(Math.random() * emptyLetterBoxes.length);
+              const secondRandomLetterBox = emptyLetterBoxes[secondRandomIndex];
+              secondRandomLetterBox.value = wordOfTheDay[secondRandomLetterBox.dataset.index];
+              secondRandomLetterBox.disabled = true;
+              emptyLetterBoxes.splice(secondRandomIndex, 1);
+
+              // Randomly select the third empty letter box
+              const thirdRandomIndex = Math.floor(Math.random() * emptyLetterBoxes.length);
+              const thirdRandomLetterBox = emptyLetterBoxes[thirdRandomIndex];
+              thirdRandomLetterBox.value = wordOfTheDay[thirdRandomLetterBox.dataset.index];
+              thirdRandomLetterBox.disabled = true;
+
+              // Mark clue as used
+              clueUsed = true;
+            }
+          }
+        });
+
       })
       .catch(error => {
         // Handle errors
         console.error('Error:', error);
         document.getElementById('wordOfTheDay').textContent = 'Error fetching the word';
+        document.getElementById('wordDescription').textContent = 'Error fetching definition';
       });
+
+    // Handle form submission
+    document.getElementById('guessForm').addEventListener('submit', function (event) {
+      event.preventDefault(); // Prevent the form from submitting normally
+
+      // Get the word of the day
+      const wordOfTheDay = document.getElementById('wordOfTheDay').textContent.trim().toLowerCase();
+
+      // Get the user's guess
+      const userGuess = Array.from(document.querySelectorAll('.letter-box')).map(letterBox => letterBox.value.trim().toLowerCase()).join('');
+
+      // Compare the user's guess with the word of the day
+      if (userGuess === wordOfTheDay) {
+        alert('Congratulations! Your guess is correct!');
+      } else {
+        alert('Sorry, your guess is incorrect. Try again!');
+      }
+
+      // Clear the input fields
+      // document.querySelectorAll('.letter-box').forEach(letterBox => letterBox.value = '');
+    });
   </script>
 
 </body>
